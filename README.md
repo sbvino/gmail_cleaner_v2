@@ -13,14 +13,17 @@ A comprehensive, production-ready Gmail inbox cleaner with AI-powered spam detec
 - **Local AI**: DistilBERT for spam detection runs locally
 - **Caching**: Redis caching for improved performance
 - **Scheduling**: Automated cleanup rules with cron scheduling
+- **Real-time Updates**: Progress tracking for long operations
 
 ### Security Features
-- OAuth 2.0 authentication
-- CSRF protection
-- Rate limiting
-- Session management
-- SSL/TLS encryption
+- OAuth 2.0 authentication with secure token storage
+- CSRF protection on all state-changing operations
+- Rate limiting (API: 10/sec, Auth: 5/min)
+- Session management with secure cookies
+- SSL/TLS encryption with strong ciphers
 - Non-root Docker containers
+- Input sanitization and validation
+- Secure headers (X-Frame-Options, CSP, etc.)
 
 ## Directory Structure
 
@@ -28,10 +31,12 @@ A comprehensive, production-ready Gmail inbox cleaner with AI-powered spam detec
 gmail-ai-cleaner/
 ├── app.py                      # Main Flask application with all routes
 ├── analyzer.py                 # Enhanced email analyzer with bulk operations
+├── scheduler.py                # Background task scheduler
 ├── requirements.txt            # Python dependencies
 ├── Dockerfile                  # Optimized for Raspberry Pi
 ├── docker-compose.yml          # Multi-container setup
 ├── nginx.conf                  # Nginx reverse proxy configuration
+├── .dockerignore              # Docker build exclusions
 ├── .env                        # Environment variables (created by setup)
 ├── credentials.json            # Google OAuth credentials (you provide)
 ├── token.pickle               # OAuth token (auto-generated)
@@ -39,15 +44,16 @@ gmail-ai-cleaner/
 ├── static/                    # Frontend assets
 │   ├── css/
 │   │   └── style.css         # Modern dark theme UI
-│   └── js/
-│       └── app.js            # Frontend JavaScript
+│   ├── js/
+│   │   └── app.js            # Frontend JavaScript
+│   └── favicon.ico           # App icon (optional)
 │
 ├── templates/
 │   └── index.html            # Dashboard HTML template
 │
 ├── config/
 │   ├── patterns.yaml         # Spam patterns and trusted domains
-│   └── rules.yaml           # Cleanup rules (auto-created)
+│   └── rules.yaml           # Automated cleanup rules
 │
 ├── scripts/
 │   ├── setup.sh             # Initial setup script
@@ -59,6 +65,7 @@ gmail-ai-cleaner/
 │
 ├── logs/                    # Application logs
 │   ├── app.log
+│   ├── scheduler.log
 │   └── error.log
 │
 ├── ssl/                     # SSL certificates
@@ -94,10 +101,11 @@ cd gmail-ai-cleaner
 2. Create a new project or select existing
 3. Enable Gmail API
 4. Create credentials (OAuth 2.0 Client ID)
-5. Add authorized redirect URIs:
+5. Application type: Web application
+6. Add authorized redirect URIs:
    - `http://localhost:5000/oauth2callback`
    - `https://localhost/oauth2callback`
-6. Download credentials and save as `credentials.json`
+7. Download credentials and save as `credentials.json`
 
 ### 3. Run setup script
 ```bash
@@ -105,12 +113,16 @@ chmod +x scripts/setup.sh
 ./scripts/setup.sh
 ```
 
-### 4. Start the application
+### 4. Configure patterns and rules
+- Edit `config/patterns.yaml` to customize spam detection
+- Edit `config/rules.yaml` to set up automated cleanup
+
+### 5. Start the application
 ```bash
 docker-compose up -d
 ```
 
-### 5. Access the dashboard
+### 6. Access the dashboard
 - Open https://localhost in your browser
 - Accept the self-signed certificate warning
 - Complete OAuth authentication on first run
@@ -129,14 +141,26 @@ docker-compose up -d
 
 All endpoints require authentication. Include CSRF token in headers.
 
+#### Analysis Endpoints
 - `GET /api/analyze/senders` - Get sender statistics
 - `GET /api/analyze/domains` - Get domain statistics
+- `GET /api/analyze/threads` - Get thread analysis
+- `GET /api/stats/velocity` - Email velocity data
+- `GET /api/stats/summary` - Summary statistics
+
+#### Cleanup Endpoints
 - `POST /api/delete/sender` - Delete all from sender
 - `POST /api/delete/bulk` - Bulk delete by criteria
+- `POST /api/delete/thread` - Delete entire thread
+- `POST /api/restore` - Restore emails from trash
+
+#### Management Endpoints
 - `GET /api/suggestions` - Get cleanup suggestions
 - `POST /api/unsubscribe` - Find unsubscribe links
 - `GET /api/export/csv` - Export statistics
-- `GET /api/stats/velocity` - Email velocity data
+- `POST /api/rules/create` - Create cleanup rule
+- `GET /api/progress` - Get operation progress
+- `GET /api/attachments/large` - Find large attachments
 
 ### Bulk Cleanup Options
 
@@ -153,6 +177,21 @@ All endpoints require authentication. Include CSRF token in headers.
 }
 ```
 
+### Automated Cleanup Rules
+
+Configure in `config/rules.yaml`:
+```yaml
+- name: "Clean Old Newsletters"
+  enabled: true
+  criteria:
+    older_than_days: 30
+    is_newsletter: true
+  schedule:
+    type: "cron"
+    hour: 2
+    minute: 0
+```
+
 ### Command Line Usage
 
 ```bash
@@ -164,25 +203,36 @@ docker-compose exec app python scripts/analyze.py --dry-run
 
 # Backup database
 ./scripts/backup.sh
+
+# View logs
+docker-compose logs -f app
+docker-compose logs -f scheduler
 ```
 
 ## Configuration
 
 ### Environment Variables (.env)
 ```bash
-SECRET_KEY=your-secret-key
+SECRET_KEY=your-secret-key-here
 FLASK_ENV=production
 REDIS_HOST=redis
 REDIS_PORT=6379
 DB_PATH=/app/data/gmail_cleaner.db
 TZ=UTC
+OAUTHLIB_INSECURE_TRANSPORT=0
 ```
 
 ### Patterns Configuration (config/patterns.yaml)
-- Spam patterns: Regex patterns to identify spam
-- Trusted domains: Domains that get lower spam scores
-- Important keywords: Protect emails with these keywords
-- Age thresholds: How long to keep different email types
+- **Spam patterns**: Regex patterns to identify spam
+- **Trusted domains**: Domains that get lower spam scores
+- **Important keywords**: Protect emails with these keywords
+- **Age thresholds**: How long to keep different email types
+
+### Rules Configuration (config/rules.yaml)
+- **Cleanup rules**: Automated deletion rules
+- **Schedule types**: Cron or interval-based
+- **Criteria options**: Multiple filtering options
+- **Safety settings**: exclude_important, exclude_starred
 
 ## Performance Optimization
 
@@ -204,19 +254,37 @@ TZ=UTC
 - Email lists cached with query-based keys
 - Redis configured with LRU eviction
 
+### Batch Processing
+- Email headers fetched in batches of 100
+- Parallel processing with ThreadPoolExecutor
+- Batch delete operations via Gmail API
+- Progressive loading for large datasets
+
 ## Security Considerations
 
-1. **OAuth Token**: Stored encrypted in token.pickle
-2. **CSRF Protection**: Required for all POST requests
-3. **Rate Limiting**: 
-   - API: 10 requests/second
-   - Auth: 5 requests/minute
-4. **SSL/TLS**: Nginx handles SSL termination
-5. **Input Validation**: All user inputs sanitized
-6. **Conservative Deletion**: 
-   - Never delete invoices, receipts, confirmations
-   - Preserve emails with attachments by default
-   - Skip trusted domains unless high spam score
+### Authentication & Authorization
+- OAuth 2.0 with secure token storage
+- Session-based authentication with secure cookies
+- CSRF tokens required for all POST requests
+- Rate limiting on authentication endpoints
+
+### Data Protection
+- Emails marked for deletion kept in trash for 30 days
+- 24-hour undo buffer in local database
+- Sensitive files (.env, token.pickle) excluded from Docker
+- Database backups encrypted (if configured)
+
+### Network Security
+- SSL/TLS with strong ciphers only
+- Security headers (CSP, X-Frame-Options, etc.)
+- Rate limiting on all API endpoints
+- Input validation and sanitization
+
+### Conservative Deletion Policy
+- Never delete: invoices, receipts, confirmations
+- Preserve emails with important keywords
+- Skip trusted domains unless high spam score
+- Dry-run mode available for all operations
 
 ## Monitoring (Optional)
 
@@ -229,6 +297,13 @@ Access:
 - Prometheus: http://localhost:9090
 - Grafana: http://localhost:3000 (admin/admin)
 
+### Available Metrics
+- Email processing rate
+- Deletion statistics
+- API response times
+- Cache hit rates
+- Background job status
+
 ## Troubleshooting
 
 ### Common Issues
@@ -237,26 +312,54 @@ Access:
    - Ensure credentials.json is valid
    - Check redirect URIs match exactly
    - Delete token.pickle and re-authenticate
+   - Verify Gmail API is enabled in GCP
 
 2. **Slow performance**
    - Reduce batch size in analyzer.py
    - Increase Redis memory limit
    - Check Docker resource limits
+   - Monitor CPU/memory usage
 
 3. **SSL certificate errors**
-   - Regenerate certificates: `openssl req -x509 -newkey rsa:4096...`
-   - Use proper domain certificates for production
+   ```bash
+   # Regenerate certificates
+   openssl req -x509 -newkey rsa:4096 -keyout ssl/key.pem \
+     -out ssl/cert.pem -days 365 -nodes \
+     -subj "/C=US/ST=State/L=City/O=Org/CN=localhost"
+   ```
+
+4. **Database locked errors**
+   - Ensure only one scheduler instance running
+   - Check file permissions
+   - Restart containers
+
+### Debug Mode
+```bash
+# Run in debug mode
+FLASK_ENV=development docker-compose up
+
+# Check container health
+docker-compose ps
+docker-compose exec app curl http://localhost:5000/health
+
+# View Redis cache
+docker-compose exec redis redis-cli
+> KEYS *
+> GET gmail:suggestions
+```
 
 ### Logs
 ```bash
-# View application logs
-docker-compose logs -f app
+# View all logs
+docker-compose logs
 
-# View Nginx logs
+# Follow specific service
+docker-compose logs -f app
+docker-compose logs -f scheduler
 docker-compose logs -f nginx
 
-# Check Redis
-docker-compose exec redis redis-cli ping
+# Check error logs
+docker-compose exec app tail -f logs/error.log
 ```
 
 ## Development
@@ -270,8 +373,12 @@ source venv/bin/activate  # or venv\Scripts\activate on Windows
 # Install dependencies
 pip install -r requirements.txt
 
+# Set environment variables
+export FLASK_ENV=development
+export FLASK_APP=app.py
+
 # Run Flask development server
-FLASK_ENV=development python app.py
+flask run --host=0.0.0.0 --port=5000
 ```
 
 ### Running Tests
@@ -280,45 +387,72 @@ FLASK_ENV=development python app.py
 docker-compose exec app pytest
 
 # With coverage
-docker-compose exec app pytest --cov=.
+docker-compose exec app pytest --cov=. --cov-report=html
+
+# Lint code
+docker-compose exec app flake8 .
+docker-compose exec app black . --check
 ```
 
-## Implementation Notes
+### Adding New Features
+1. Create feature branch
+2. Update analyzer.py for backend logic
+3. Add API endpoint in app.py
+4. Update frontend in app.js
+5. Add tests
+6. Update documentation
 
-### Batch Processing
-- Fetches email headers only for performance
-- Processes in batches of 100 emails
-- Parallel processing with ThreadPoolExecutor
-- Batch delete operations via Gmail API
+## Production Deployment
 
-### Spam Detection
-- Local DistilBERT model (CPU-optimized)
-- Pattern matching with configurable rules
-- Domain reputation scoring
-- Email velocity tracking
-- Read rate analysis
+### SSL Certificates
+Replace self-signed certificates with proper ones:
+```bash
+# Using Let's Encrypt
+certbot certonly --standalone -d yourdomain.com
+cp /etc/letsencrypt/live/yourdomain.com/fullchain.pem ssl/cert.pem
+cp /etc/letsencrypt/live/yourdomain.com/privkey.pem ssl/key.pem
+```
 
-### Safety Measures
-- 24-hour undo buffer in database
-- Dry-run mode for all operations
-- Important email detection
-- Conservative default settings
-- Comprehensive logging
+### Environment Hardening
+1. Change default SECRET_KEY
+2. Disable debug mode
+3. Configure firewall rules
+4. Set up regular backups
+5. Monitor logs and metrics
+6. Keep Docker images updated
 
-### Performance Targets Met
-- ✅ Analyze 1000 emails in <30 seconds
-- ✅ Delete 500 emails in <10 seconds
-- ✅ Dashboard loads in <2 seconds
-- ✅ Supports 10,000+ email inboxes
-- ✅ Runs on Raspberry Pi 5 (8GB)
+### Backup Strategy
+```bash
+# Automated daily backups
+0 3 * * * /path/to/gmail-ai-cleaner/scripts/backup.sh
+
+# Restore from backup
+tar -xzf backups/[timestamp].tar.gz
+cp backups/[timestamp]/gmail_cleaner.db data/
+```
+
+## API Rate Limits
+
+- General API: 10 requests/second
+- Authentication: 5 requests/minute  
+- Export endpoints: 1 request/minute
+- Bulk operations: 5 requests/minute
+
+Limits are per IP address and can be configured in nginx.conf.
 
 ## Contributing
 
 1. Fork the repository
-2. Create feature branch
-3. Commit changes
-4. Push to branch
+2. Create feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to branch (`git push origin feature/AmazingFeature`)
 5. Create Pull Request
+
+### Code Style
+- Python: Follow PEP 8, use Black formatter
+- JavaScript: Follow ESLint rules
+- CSS: Use consistent naming (BEM methodology)
+- Commits: Use conventional commits format
 
 ## License
 
@@ -330,14 +464,20 @@ MIT License - See LICENSE file
 - Flask and extensions
 - Transformers library for AI models
 - Docker for containerization
+- Redis for caching
+- SQLite for persistence
 
 ## Support
 
 For issues and questions:
 1. Check the troubleshooting section
 2. Review logs for errors
-3. Create an issue with details
+3. Search existing issues
+4. Create new issue with:
+   - System information
+   - Error messages
+   - Steps to reproduce
 
 ---
 
-**Important**: This tool permanently deletes emails (moves to trash). Always use dry-run mode first and maintain backups of important emails.
+**⚠️ Important**: This tool permanently deletes emails (moves to trash). Always use dry-run mode first and maintain backups of important emails. The tool is designed to be conservative, but email deletion is irreversible after 30 days.
