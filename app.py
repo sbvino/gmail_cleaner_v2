@@ -11,7 +11,7 @@ from datetime import datetime, timedelta
 from functools import wraps
 from typing import Dict, List, Optional
 
-from flask import Flask, render_template, request, jsonify, session, send_file, Response
+from flask import Flask, render_template, request, jsonify, session, send_file, Response, redirect
 from flask_cors import CORS
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
@@ -171,6 +171,23 @@ def auth_login():
     except Exception as e:
         logger.error(f"Authentication error: {e}")
         return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@app.route('/oauth2callback')
+def oauth2callback():
+    """Handle OAuth2 callback"""
+    try:
+        # Get authorization code from request
+        code = request.args.get('code')
+        if not code:
+            return jsonify({'error': 'No authorization code received'}), 400
+        
+        # Exchange code for token (handled by analyzer.authenticate)
+        # Redirect to main page after successful auth
+        return redirect('/?auth=success')
+    except Exception as e:
+        logger.error(f"OAuth callback error: {e}")
+        return redirect('/?auth=error')
 
 
 @app.route('/api/analyze/senders', methods=['GET'])
