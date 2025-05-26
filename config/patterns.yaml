@@ -1,0 +1,275 @@
+# Gmail Cleaner Pattern Configuration
+# This file defines spam patterns and trusted domains
+
+# Spam patterns - These are regex patterns to identify potential spam
+spam_patterns:
+  # Marketing/Promotional patterns
+  - "unsubscribe"
+  - "click here"
+  - "limited time"
+  - "act now"
+  - "don't miss out"
+  - "exclusive offer"
+  - "special promotion"
+  - "save now"
+  - "discount code"
+  - "% off"
+  - "free shipping"
+  - "shop now"
+  - "buy now"
+  - "order today"
+  - "claim your"
+  
+  # Newsletter patterns
+  - "newsletter"
+  - "weekly digest"
+  - "monthly update"
+  - "daily deals"
+  - "new arrivals"
+  - "product updates"
+  
+  # Spam/Scam patterns
+  - "congratulations"
+  - "you've won"
+  - "winner"
+  - "free gift"
+  - "no obligation"
+  - "risk free"
+  - "100% guaranteed"
+  - "miracle"
+  - "breakthrough"
+  - "revolutionary"
+  - "hot singles"
+  - "work from home"
+  - "make money fast"
+  - "get rich quick"
+  - "million dollar"
+  - "nigerian prince"
+  
+  # Urgency patterns
+  - "urgent"
+  - "expires soon"
+  - "ending soon"
+  - "last chance"
+  - "final notice"
+  - "immediate action"
+  - "act before"
+  
+  # Financial scam patterns
+  - "verify your account"
+  - "suspended account"
+  - "confirm your identity"
+  - "update payment"
+  - "refund pending"
+  - "tax refund"
+  - "inheritance"
+  - "lottery"
+  - "casino"
+  - "bitcoin"
+  - "cryptocurrency"
+  - "forex"
+
+# Trusted domains - These domains get lower spam scores
+trusted_domains:
+  # Email providers
+  - gmail.com
+  - outlook.com
+  - yahoo.com
+  - proton.me
+  - icloud.com
+  
+  # Major tech companies
+  - google.com
+  - microsoft.com
+  - apple.com
+  - amazon.com
+  - github.com
+  - gitlab.com
+  - stackoverflow.com
+  
+  # Financial institutions (add your banks)
+  - chase.com
+  - bankofamerica.com
+  - wellsfargo.com
+  - citi.com
+  - paypal.com
+  - stripe.com
+  
+  # Social media
+  - facebook.com
+  - twitter.com
+  - linkedin.com
+  - instagram.com
+  - youtube.com
+  
+  # Productivity tools
+  - slack.com
+  - notion.so
+  - trello.com
+  - asana.com
+  - monday.com
+  - zoom.us
+  - dropbox.com
+  
+  # Developer tools
+  - npm.js
+  - docker.com
+  - digitalocean.com
+  - heroku.com
+  - vercel.com
+  - netlify.com
+  
+  # Government domains
+  - .gov
+  - .edu
+  
+  # Shopping (be careful with these)
+  - ebay.com
+  - etsy.com
+  - target.com
+  - walmart.com
+  - bestbuy.com
+
+# Important keywords - Emails with these are protected
+important_keywords:
+  # Financial
+  - invoice
+  - receipt
+  - payment confirmation
+  - order confirmation
+  - transaction
+  - statement
+  - bill
+  - contract
+  - agreement
+  - policy
+  
+  # Security
+  - "two-factor"
+  - "2fa"
+  - "verification code"
+  - "security alert"
+  - "password reset"
+  - "account recovery"
+  
+  # Personal
+  - appointment
+  - reservation
+  - booking confirmation
+  - ticket
+  - boarding pass
+  - itinerary
+  
+  # Work
+  - meeting
+  - interview
+  - offer letter
+  - salary
+  - benefits
+  - performance review
+  
+  # Legal
+  - legal notice
+  - court
+  - subpoena
+  - compliance
+  - audit
+  
+  # Health
+  - prescription
+  - medical
+  - insurance
+  - claim
+  - diagnosis
+  - lab results
+
+# Automated sender indicators
+automated_indicators:
+  - noreply
+  - no-reply
+  - donotreply
+  - notification
+  - automated
+  - system
+  - mailer-daemon
+  - postmaster
+  - newsletter
+  - updates
+  - alerts
+  - notifications
+
+# Subject line patterns to preserve
+preserve_subjects:
+  # Security related
+  - "otp"
+  - "one-time password"
+  - "verification code"
+  - "security code"
+  - "confirm your"
+  - "reset password"
+  
+  # Financial
+  - "invoice #"
+  - "order #"
+  - "receipt"
+  - "payment"
+  - "refund"
+  - "statement"
+  
+  # Travel
+  - "booking confirmation"
+  - "flight"
+  - "hotel reservation"
+  - "check-in"
+  
+  # Deliveries
+  - "tracking"
+  - "delivery"
+  - "shipment"
+  - "package"
+
+# File attachment types to be careful with
+important_attachments:
+  - .pdf
+  - .doc
+  - .docx
+  - .xls
+  - .xlsx
+  - .ppt
+  - .pptx
+  - .zip
+  - .csv
+  - .txt
+
+# Dangerous attachment types (potential malware)
+dangerous_attachments:
+  - .exe
+  - .scr
+  - .vbs
+  - .pif
+  - .cmd
+  - .com
+  - .bat
+  - .jar
+  - .app
+
+# Age thresholds (in days)
+age_thresholds:
+  # Old security emails can be deleted
+  security_emails: 7
+  
+  # Marketing emails
+  marketing_emails: 30
+  
+  # Newsletters
+  newsletters: 14
+  
+  # General emails
+  general_emails: 365
+  
+  # Never delete these regardless of age
+  never_delete: 
+    - invoices
+    - receipts
+    - contracts
+    - legal documents
