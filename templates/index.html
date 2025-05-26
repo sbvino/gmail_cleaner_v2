@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gmail AI Cleaner - Dashboard</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios@1.5.0/dist/axios.min.js"></script>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-content">
+                <h1><i class="fas fa-envelope-open-text"></i> Gmail AI Cleaner</h1>
+                <div class="header-actions">
+                    <button id="refreshBtn" class="btn btn-secondary">
+                        <i class="fas fa-sync-alt"></i> Refresh
+                    </button>
+                    <button id="settingsBtn" class="btn btn-secondary">
+                        <i class="fas fa-cog"></i> Settings
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Stats Cards -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon"><i class="fas fa-envelope"></i></div>
+                    <div class="stat-content">
+                        <h3>Total Emails</h3>
+                        <p class="stat-value" id="totalEmails">-</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon"><i class="fas fa-users"></i></div>
+                    <div class="stat-content">
+                        <h3>Unique Senders</h3>
+                        <p class="stat-value" id="uniqueSenders">-</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon"><i class="fas fa-hdd"></i></div>
+                    <div class="stat-content">
+                        <h3>Storage Used</h3>
+                        <p class="stat-value" id="storageUsed">-</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon"><i class="fas fa-trash"></i></div>
+                    <div class="stat-content">
+                        <h3>Cleaned This Week</h3>
+                        <p class="stat-value" id="cleanedWeek">-</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="quick-actions">
+                <h2>Quick Actions</h2>
+                <div class="action-buttons">
+                    <button id="analyzeSendersBtn" class="btn btn-primary">
+                        <i class="fas fa-chart-bar"></i> Analyze Senders
+                    </button>
+                    <button id="viewSuggestionsBtn" class="btn btn-success">
+                        <i class="fas fa-lightbulb"></i> View Suggestions
+                    </button>
+                    <button id="bulkCleanupBtn" class="btn btn-warning">
+                        <i class="fas fa-broom"></i> Bulk Cleanup
+                    </button>
+                    <button id="exportStatsBtn" class="btn btn-secondary">
+                        <i class="fas fa-download"></i> Export Stats
+                    </button>
+                </div>
+            </div>
+
+            <!-- Progress Bar -->
+            <div id="progressContainer" class="progress-container" style="display: none;">
+                <h3 id="progressMessage">Processing...</h3>
+                <div class="progress-bar">
+                    <div id="progressBar" class="progress-fill"></div>
+                </div>
+                <p id="progressDetails"></p>
+            </div>
+
+            <!-- Cleanup Suggestions -->
+            <div id="suggestionsSection" class="section" style="display: none;">
+                <h2>Cleanup Suggestions</h2>
+                <div class="suggestions-info">
+                    <p>Based on AI analysis, we recommend cleaning up the following senders:</p>
+                    <div class="impact-summary">
+                        <span>Total Impact: </span>
+                        <span id="totalImpactEmails">0</span> emails, 
+                        <span id="totalImpactSize">0</span> MB
+                    </div>
+                </div>
+                <div id="suggestionsList" class="suggestions-list"></div>
+            </div>
+
+            <!-- Sender Analysis Table -->
+            <div id="senderAnalysisSection" class="section" style="display: none;">
+                <h2>Sender Analysis</h2>
+                <div class="table-controls">
+                    <input type="text" id="senderSearch" class="search-input" placeholder="Search senders...">
+                    <select id="sortBy" class="sort-select">
+                        <option value="total_count">Email Count</option>
+                        <option value="unread_count">Unread Count</option>
+                        <option value="size_mb">Size (MB)</option>
+                        <option value="spam_score">Spam Score</option>
+                        <option value="email_velocity">Email Velocity</option>
+                    </select>
+                    <button id="selectAllBtn" class="btn btn-sm">Select All</button>
+                    <button id="deselectAllBtn" class="btn btn-sm">Deselect All</button>
+                </div>
+                <div class="table-wrapper">
+                    <table id="senderTable" class="data-table">
+                        <thead>
+                            <tr>
+                                <th><input type="checkbox" id="selectAllCheckbox"></th>
+                                <th>Sender</th>
+                                <th>Domain</th>
+                                <th>Emails</th>
+                                <th>Unread</th>
+                                <th>Size (MB)</th>
+                                <th>Spam Score</th>
+                                <th>Type</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="senderTableBody">
+                            <!-- Dynamic content -->
+                        </tbody>
+                    </table>
+                </div>
+                <div class="bulk-actions">
+                    <button id="deleteSelectedBtn" class="btn btn-danger" disabled>
+                        <i class="fas fa-trash"></i> Delete Selected
+                    </button>
+                    <button id="unsubscribeSelectedBtn" class="btn btn-warning" disabled>
+                        <i class="fas fa-times-circle"></i> Unsubscribe Selected
+                    </button>
+                </div>
+            </div>
+
+            <!-- Email Velocity Chart -->
+            <div id="velocitySection" class="section" style="display: none;">
+                <h2>Email Velocity (Last 30 Days)</h2>
+                <canvas id="velocityChart"></canvas>
+            </div>
+
+            <!-- Domain Analysis -->
+            <div id="domainSection" class="section" style="display: none;">
+                <h2>Top Domains</h2>
+                <canvas id="domainChart"></canvas>
+            </div>
+        </main>
+
+        <!-- Modals -->
+        <!-- Bulk Cleanup Modal -->
+        <div id="bulkCleanupModal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Bulk Cleanup Options</h2>
+                    <button class="close-btn">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <form id="bulkCleanupForm">
+                        <div class="form-group">
+                            <label>Delete emails from specific domain:</label>
+                            <input type="text" id="cleanupDomain" placeholder="e.g., marketing.com">
+                        </div>
+                        <div class="form-group">
+                            <label>Delete emails older than:</label>
+                            <input type="number" id="cleanupDays" placeholder="Days" min="1">
+                        </div>
+                        <div class="form-group">
+                            <label>
+                                <input type="checkbox" id="cleanupUnread">
+                                Only unread emails
+                            </label>
+                        </div>
+                        <div class="form-group">
+                            <label>
+                                <input type="checkbox" id="cleanupAttachments">
+                                Has attachments
+                            </label>
+                        </div>
+                        <div class="form-group">
+                            <label>Minimum size (MB):</label>
+                            <input type="number" id="cleanupSize" placeholder="Size in MB" min="0" step="0.1">
+                        </div>
+                        <div class="form-group">
+                            <label>
+                                <input type="checkbox" id="excludeImportant" checked>
+                                Exclude important emails
+                            </label>
+                        </div>
+                        <div class="form-group">
+                            <label>
+                                <input type="checkbox" id="excludeStarred" checked>
+                                Exclude starred emails
+                            </label>
+                        </div>
+                        <div class="form-group">
+                            <label>
+                                <input type="checkbox" id="dryRun" checked>
+                                Dry run (preview only)
+                            </label>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary close-btn">Cancel</button>
+                    <button id="executeBulkCleanup" class="btn btn-danger">
+                        <i class="fas fa-trash"></i> Execute Cleanup
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings Modal -->
+        <div id="settingsModal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Settings</h2>
+                    <button class="close-btn">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="settings-section">
+                        <h3>Auto-Cleanup Rules</h3>
+                        <div id="rulesList"></div>
+                        <button id="addRuleBtn" class="btn btn-primary btn-sm">
+                            <i class="fas fa-plus"></i> Add Rule
+                        </button>
+                    </div>
+                    <div class="settings-section">
+                        <h3>Trusted Domains</h3>
+                        <textarea id="trustedDomains" rows="5" placeholder="One domain per line"></textarea>
+                    </div>
+                    <div class="settings-section">
+                        <h3>Cache Settings</h3>
+                        <button id="clearCacheBtn" class="btn btn-warning">
+                            <i class="fas fa-eraser"></i> Clear Cache
+                        </button>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary close-btn">Close</button>
+                    <button id="saveSettingsBtn" class="btn btn-primary">Save Settings</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Delete Confirmation Modal -->
+        <div id="confirmModal" class="modal">
+            <div class="modal-content modal-sm">
+                <div class="modal-header">
+                    <h2>Confirm Action</h2>
+                    <button class="close-btn">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <p id="confirmMessage"></p>
+                    <div id="confirmDetails"></div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary close-btn">Cancel</button>
+                    <button id="confirmActionBtn" class="btn btn-danger">Confirm</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Toast Notifications -->
+        <div id="toastContainer" class="toast-container"></div>
+    </div>
+
+    <!-- CSRF Token -->
+    <input type="hidden" id="csrfToken" value="{{ csrf_token }}">
+
+    <!-- Load JavaScript -->
+    <script src="/static/js/app.js"></script>
+</body>
+</html>
