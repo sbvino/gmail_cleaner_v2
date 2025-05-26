@@ -1,0 +1,114 @@
+# Gmail Cleaner Rules Configuration Template
+# This file defines automated cleanup rules
+
+# Example cleanup rules
+rules:
+  # Delete old newsletters
+  - name: "Clean Old Newsletters"
+    enabled: true
+    criteria:
+      older_than_days: 30
+      is_newsletter: true
+      exclude_important: true
+    schedule:
+      type: "cron"
+      hour: 2
+      minute: 0
+      day_of_week: "*"
+    description: "Delete newsletters older than 30 days"
+
+  # Delete unread marketing emails
+  - name: "Clean Unread Marketing"
+    enabled: true
+    criteria:
+      older_than_days: 7
+      is_unread: true
+      spam_score_min: 0.7
+      exclude_important: true
+      exclude_starred: true
+    schedule:
+      type: "interval"
+      interval_type: "days"
+      interval_value: 1
+    description: "Delete unread marketing emails older than 7 days"
+
+  # Clean large attachments
+  - name: "Clean Large Old Attachments"
+    enabled: false
+    criteria:
+      older_than_days: 90
+      has_attachment: true
+      min_size_mb: 10
+      exclude_important: true
+    schedule:
+      type: "cron"
+      hour: 3
+      minute: 30
+      day: 1  # First day of month
+    description: "Delete old emails with large attachments"
+
+  # Delete old automated emails
+  - name: "Clean Old Automated Emails"
+    enabled: true
+    criteria:
+      older_than_days: 14
+      is_automated: true
+      exclude_domains:
+        - "bank*.com"
+        - "*.gov"
+        - "*.edu"
+    schedule:
+      type: "cron"
+      hour: 4
+      minute: 0
+    description: "Delete old automated emails except from banks/government"
+
+  # Clean specific domains
+  - name: "Clean Marketing Domains"
+    enabled: false
+    criteria:
+      domains:
+        - "marketing.example.com"
+        - "newsletter.example.com"
+      older_than_days: 3
+    schedule:
+      type: "interval"
+      interval_type: "hours"
+      interval_value: 12
+    description: "Aggressively clean known marketing domains"
+
+# Schedule configuration options:
+# - type: "cron"
+#   - hour: 0-23
+#   - minute: 0-59
+#   - day_of_week: 0-6 or mon,tue,wed,thu,fri,sat,sun or *
+#   - day: 1-31 or *
+#   - month: 1-12 or *
+#
+# - type: "interval"
+#   - interval_type: "minutes", "hours", "days", "weeks"
+#   - interval_value: number
+
+# Criteria options:
+# - sender: specific email address
+# - domain: specific domain
+# - domains: list of domains
+# - older_than_days: number
+# - newer_than_days: number
+# - has_attachment: boolean
+# - is_unread: boolean
+# - is_read: boolean
+# - min_size_mb: number
+# - max_size_mb: number
+# - subject_contains: string or list
+# - subject_not_contains: string or list
+# - body_contains: string or list (slower)
+# - labels: list of Gmail labels
+# - exclude_labels: list of labels to exclude
+# - exclude_important: boolean
+# - exclude_starred: boolean
+# - exclude_domains: list of domains to never delete
+# - spam_score_min: 0.0 to 1.0
+# - spam_score_max: 0.0 to 1.0
+# - is_newsletter: boolean
+# - is_automated: boolean
