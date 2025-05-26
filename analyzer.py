@@ -156,7 +156,9 @@ class GmailAnalyzer:
                 criteria TEXT,
                 action TEXT,
                 is_active BOOLEAN,
-                created_at TIMESTAMP
+                created_at TIMESTAMP,
+                last_run TIMESTAMP,
+                schedule TEXT
             );
             
             CREATE INDEX IF NOT EXISTS idx_sender ON email_history(sender);
