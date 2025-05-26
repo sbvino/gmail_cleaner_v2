@@ -1,0 +1,168 @@
+services:
+  app:
+    build: .
+    container_name: gmail-cleaner-app
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      - FLASK_ENV=production
+      - SECRET_KEY=${SECRET_KEY:-your-secret-key-here-change-in-production}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - DB_PATH=/app/data/gmail_cleaner.db
+      - PYTHONUNBUFFERED=1
+      - TZ=UTC
+    volumes:
+      - ./data:/app/data
+      - ./config:/app/config
+      - ./credentials.json:/app/credentials.json:ro
+      - ./token.pickle:/app/token.pickle
+      - ./logs:/app/logs
+    depends_on:
+      - redis
+    networks:
+      - gmail-cleaner-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+  redis:
+    image: redis:7-alpine
+    container_name: gmail-cleaner-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis-data:/data
+    networks:
+      - gmail-cleaner-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+
+  nginx:
+    image: nginx:alpine
+    container_name: gmail-cleaner-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+      - nginx-cache:/var/cache/nginx
+    depends_on:
+      - app
+    networks:
+      - gmail-cleaner-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Optional: Background scheduler for automated cleanup rules
+  scheduler:
+    build: .
+    container_name: gmail-cleaner-scheduler
+    restart: unless-stopped
+    command: python scheduler.py
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - DB_PATH=/app/data/gmail_cleaner.db
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./data:/app/data
+      - ./config:/app/config
+      - ./credentials.json:/app/credentials.json:ro
+      - ./token.pickle:/app/token.pickle
+      - ./logs:/app/logs
+    depends_on:
+      - redis
+      - app
+    networks:
+      - gmail-cleaner-network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+
+  # Optional: Monitoring with Prometheus
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: gmail-cleaner-prometheus
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--web.enable-lifecycle'
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    networks:
+      - gmail-cleaner-network
+    profiles:
+      - monitoring
+
+  # Optional: Grafana for visualization
+  grafana:
+    image: grafana/grafana:latest
+    container_name: gmail-cleaner-grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./monitoring/grafana-dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./monitoring/grafana-datasources.yml:/etc/grafana/provisioning/datasources/datasources.yml:ro
+    depends_on:
+      - prometheus
+    networks:
+      - gmail-cleaner-network
+    profiles:
+      - monitoring
+
+networks:
+  gmail-cleaner-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+volumes:
+  redis-data:
+    driver: local
+  prometheus-data:
+    driver: local
+  grafana-data:
+    driver: local
+  nginx-cache:
+    driver: local
