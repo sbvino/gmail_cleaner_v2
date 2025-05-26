@@ -1,0 +1,67 @@
+# Core Flask dependencies
+Flask==2.3.3
+flask-cors==4.0.0
+flask-limiter==3.3.1
+flask-compress==1.13
+
+# Gmail API and Google Auth
+google-auth==2.22.0
+google-auth-oauthlib==1.0.0
+google-auth-httplib2==0.1.0
+google-api-python-client==2.97.0
+
+# Data processing
+pandas==2.0.3
+numpy==1.24.3
+
+# Redis for caching and rate limiting
+redis==4.6.0
+hiredis==2.2.3
+
+# Database
+sqlite3-to-mysql==2.1.6
+
+# ML/AI for spam detection (lightweight for RPi)
+transformers==4.33.1
+torch==2.0.1
+--find-links https://download.pytorch.org/whl/cpu
+--extra-index-url https://download.pytorch.org/whl/cpu
+
+# Background tasks and scheduling
+APScheduler==3.10.4
+celery==5.3.1
+
+# Web server
+gunicorn==21.2.0
+gevent==23.7.0
+
+# Utilities
+python-dotenv==1.0.0
+PyYAML==6.0.1
+requests==2.31.0
+python-dateutil==2.8.2
+
+# Security
+cryptography==41.0.3
+PyJWT==2.8.0
+
+# Monitoring (optional)
+prometheus-client==0.17.1
+flask-prometheus-metrics==1.0.0
+
+# Development tools (optional)
+pytest==7.4.0
+pytest-cov==4.1.0
+black==23.7.0
+flake8==6.1.0
+
+# Rate limiting backend
+limits==3.5.0
+
+# Email parsing
+beautifulsoup4==4.12.2
+lxml==4.9.3
+
+# Performance optimization
+cachetools==5.3.1
+msgpack==1.0.5
