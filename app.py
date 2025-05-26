@@ -483,6 +483,7 @@ def unsubscribe():
 
 @app.route('/api/export/csv', methods=['GET'])
 @require_auth
+@limiter.limit("1 per minute")
 def export_csv():
     """Export sender statistics as CSV"""
     try:
@@ -526,14 +527,15 @@ def create_rule():
         # Save rule to database
         conn = analyzer.db_conn
         cursor = conn.execute("""
-            INSERT INTO cleanup_rules (name, criteria, action, is_active, created_at)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO cleanup_rules (name, criteria, action, is_active, created_at, schedule)
+            VALUES (?, ?, ?, ?, ?, ?)
         """, (
             data['name'],
             json.dumps(data['criteria']),
             data['action'],
             data.get('is_active', True),
-            datetime.now()
+            datetime.now(),
+            json.dumps(data.get('schedule', {}))
         ))
         
         rule_id = cursor.lastrowid
