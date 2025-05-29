@@ -30,6 +30,12 @@ fi
 chmod +x scripts/*.sh 2>/dev/null || true
 chmod +x scripts/*.py 2>/dev/null || true
 
+# Initialize database if needed
+if command -v python3 &> /dev/null; then
+    echo "Initializing database..."
+    python3 scripts/init-db.py 2>/dev/null || true
+fi
+
 echo "Permissions fixed!"
 echo ""
 echo "If you're still having issues:"
