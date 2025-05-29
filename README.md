@@ -114,7 +114,13 @@ cd gmail-ai-cleaner
 
 ### 3. Run setup script
 ```bash
-chmod +x scripts/setup.sh
+# Make scripts executable
+chmod +x scripts/*.sh
+
+# Fix permissions (important for Docker)
+./scripts/fix-permissions.sh
+
+# Run setup
 ./scripts/setup.sh
 ```
 
@@ -208,6 +214,9 @@ docker-compose exec app python scripts/analyze.py --dry-run
 
 # Backup database
 ./scripts/backup.sh
+
+# Initialize database manually
+python3 scripts/init-db.py
 
 # View logs
 docker-compose logs -f app
@@ -351,19 +360,34 @@ Add custom alerts in `monitoring/alerts/gmail-cleaner.yml`
 
 ### Common Issues
 
-1. **Authentication fails**
+1. **Database Error: "unable to open database file"**
+   ```bash
+   # Fix permissions
+   chmod +x scripts/fix-permissions.sh
+   ./scripts/fix-permissions.sh
+   
+   # Or manually:
+   mkdir -p data logs
+   chmod 777 data logs
+   
+   # Restart containers
+   docker-compose down
+   docker-compose up -d
+   ```
+
+2. **Authentication fails**
    - Ensure credentials.json is valid
    - Check redirect URIs match exactly
    - Delete token.pickle and re-authenticate
    - Verify Gmail API is enabled in GCP
 
-2. **Slow performance**
+3. **Slow performance**
    - Reduce batch size in analyzer.py
    - Increase Redis memory limit
    - Check Docker resource limits
    - Monitor CPU/memory usage
 
-3. **SSL certificate errors**
+4. **SSL certificate errors**
    ```bash
    # Regenerate certificates
    openssl req -x509 -newkey rsa:4096 -keyout ssl/key.pem \
@@ -371,7 +395,17 @@ Add custom alerts in `monitoring/alerts/gmail-cleaner.yml`
      -subj "/C=US/ST=State/L=City/O=Org/CN=localhost"
    ```
 
-4. **Database locked errors**
+5. **Docker build fails on Raspberry Pi**
+   ```bash
+   # Increase swap space
+   sudo dphys-swapfile swapoff
+   sudo nano /etc/dphys-swapfile
+   # Set CONF_SWAPSIZE=2048
+   sudo dphys-swapfile setup
+   sudo dphys-swapfile swapon
+   ```
+
+6. **Database locked errors**
    - Ensure only one scheduler instance running
    - Check file permissions
    - Restart containers
@@ -524,6 +558,50 @@ For issues and questions:
 ---
 
 **⚠️ Important**: This tool permanently deletes emails (moves to trash). Always use dry-run mode first and maintain backups of important emails. The tool is designed to be conservative, but email deletion is irreversible after 30 days.
+
+### Database Error Solutions
+
+If you encounter "unable to open database file" error, try these solutions in order:
+
+1. **Quick Fix (Recommended)**
+   ```bash
+   ./scripts/fix-permissions.sh
+   docker-compose restart
+   ```
+
+2. **Manual Fix**
+   ```bash
+   mkdir -p data logs
+   chmod 777 data logs
+   touch data/gmail_cleaner.db
+   chmod 666 data/gmail_cleaner.db
+   ```
+
+3. **Docker Volume Fix**
+   ```bash
+   docker-compose down
+   docker volume prune
+   ./scripts/fix-permissions.sh
+   docker-compose up -d
+   ```
+
+4. **Complete Reset**
+   ```bash
+   docker-compose down -v
+   rm -rf data logs
+   ./scripts/setup.sh
+   ```
+
+This error usually occurs due to:
+- Missing data directory
+- Incorrect file permissions
+- Docker volume conflicts
+- Running on systems with strict security (SELinux)
+
+For SELinux systems:
+```bash
+sudo chcon -R -t container_file_t data/
+```
 
 ## Final Implementation Notes
 
