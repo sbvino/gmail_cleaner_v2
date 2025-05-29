@@ -60,6 +60,11 @@ ENV PATH="/opt/venv/bin:$PATH" \
 RUN mkdir -p /tmp/transformers_cache /tmp/huggingface && \
     chown -R gmail:gmail /tmp/transformers_cache /tmp/huggingface
 
+# Fix permissions for the app directory
+RUN find /app -type d -exec chmod 755 {} \; && \
+    find /app -type f -exec chmod 644 {} \; && \
+    chmod -R 777 /app/data /app/logs
+
 # Switch to non-root user
 USER gmail
 
