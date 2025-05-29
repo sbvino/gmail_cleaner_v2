@@ -44,7 +44,7 @@ if ! command -v docker &> /dev/null; then
 fi
 
 # Check for Docker Compose
-if ! command -v docker-compose &> /dev/null; then
+if ! command -v docker compose &> /dev/null; then
     print_error "Docker Compose is not installed. Please install Docker Compose first."
     exit 1
 fi
@@ -235,7 +235,7 @@ chmod +x scripts/analyze.py
 
 # Build Docker images
 print_status "Building Docker images..."
-docker-compose build
+docker compose build
 
 # Create data directory with proper permissions
 print_status "Creating data directory..."
@@ -249,14 +249,14 @@ if command -v python3 &> /dev/null; then
     python3 scripts/init-db.py
 else
     # Otherwise use Docker
-    docker-compose run --rm -v $(pwd)/data:/app/data app python scripts/init-db.py
+    docker compose run --rm -v $(pwd)/data:/app/data app python scripts/init-db.py
 fi
 
 print_status "Setup complete!"
 echo ""
 echo "Next steps:"
 echo "1. Make sure credentials.json is in place"
-echo "2. Run: docker-compose up -d"
+echo "2. Run: docker compose up -d"
 echo "3. Visit: https://localhost"
 echo "4. First run will require OAuth authentication"
 echo ""
