@@ -42,9 +42,11 @@ WORKDIR /app
 # Copy application files
 COPY --chown=gmail:gmail . /app/
 
-# Create necessary directories
+# Create necessary directories with proper permissions
 RUN mkdir -p /app/data /app/logs /app/config && \
-    chown -R gmail:gmail /app
+    chown -R gmail:gmail /app && \
+    chmod -R 755 /app && \
+    chmod 777 /app/data /app/logs
 
 # Set environment variables
 ENV PATH="/opt/venv/bin:$PATH" \
