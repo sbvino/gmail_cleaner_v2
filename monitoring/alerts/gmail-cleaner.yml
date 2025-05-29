@@ -1,0 +1,135 @@
+groups:
+  - name: gmail_cleaner_alerts
+    interval: 30s
+    rules:
+      # High error rate alert
+      - alert: HighGmailAPIErrorRate
+        expr: |
+          (
+            sum(rate(gmail_api_errors_total[5m]))
+            /
+            sum(rate(gmail_api_requests_total[5m]))
+          ) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+          service: gmail-cleaner
+        annotations:
+          summary: "High Gmail API error rate detected"
+          description: "Gmail API error rate is {{ $value | humanizePercentage }} for the last 5 minutes"
+
+      # Gmail API down
+      - alert: GmailAPIDown
+        expr: up{job="gmail-cleaner-app"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          service: gmail-cleaner
+        annotations:
+          summary: "Gmail Cleaner application is down"
+          description: "The Gmail Cleaner application has been down for more than 2 minutes"
+
+      # High memory usage
+      - alert: HighMemoryUsage
+        expr: |
+          (
+            container_memory_usage_bytes{name="gmail-cleaner-app"}
+            /
+            container_spec_memory_limit_bytes{name="gmail-cleaner-app"}
+          ) > 0.9
+        for: 5m
+        labels:
+          severity: warning
+          service: gmail-cleaner
+        annotations:
+          summary: "High memory usage detected"
+          description: "Container memory usage is above 90% for the last 5 minutes"
+
+      # Redis connection issues
+      - alert: RedisDown
+        expr: up{job="redis"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          service: gmail-cleaner
+        annotations:
+          summary: "Redis is down"
+          description: "Redis has been down for more than 2 minutes"
+
+      # Low cache hit rate
+      - alert: LowCacheHitRate
+        expr: |
+          (
+            sum(rate(gmail_cache_hits_total[5m]))
+            /
+            (sum(rate(gmail_cache_hits_total[5m])) + sum(rate(gmail_cache_misses_total[5m])))
+          ) < 0.5
+        for: 10m
+        labels:
+          severity: warning
+          service: gmail-cleaner
+        annotations:
+          summary: "Low cache hit rate"
+          description: "Cache hit rate is below 50% for the last 10 minutes"
+
+      # Slow operations
+      - alert: SlowOperations
+        expr: |
+          histogram_quantile(0.95, rate(gmail_operation_duration_seconds_bucket[5m])) > 30
+        for: 5m
+        labels:
+          severity: warning
+          service: gmail-cleaner
+        annotations:
+          summary: "Slow operations detected"
+          description: "95th percentile operation duration is above 30 seconds"
+
+      # Failed cleanup rules
+      - alert: FailedCleanupRules
+        expr: |
+          sum(rate(gmail_cleanup_rules_failed_total[5m])) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: gmail-cleaner
+        annotations:
+          summary: "Cleanup rules are failing"
+          description: "{{ $value }} cleanup rules have failed in the last 5 minutes"
+
+      # Disk space low
+      - alert: LowDiskSpace
+        expr: |
+          (
+            node_filesystem_avail_bytes{mountpoint="/"}
+            /
+            node_filesystem_size_bytes{mountpoint="/"}
+          ) < 0.1
+        for: 5m
+        labels:
+          severity: critical
+          service: gmail-cleaner
+        annotations:
+          summary: "Low disk space"
+          description: "Less than 10% disk space remaining on root filesystem"
+
+      # Too many active sessions
+      - alert: TooManyActiveSessions
+        expr: gmail_active_sessions > 100
+        for: 5m
+        labels:
+          severity: warning
+          service: gmail-cleaner
+        annotations:
+          summary: "Too many active sessions"
+          description: "{{ $value }} active sessions detected, possible memory leak or attack"
+
+      # Nginx down
+      - alert: NginxDown
+        expr: up{job="nginx"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          service: gmail-cleaner
+        annotations:
+          summary: "Nginx is down"
+          description: "Nginx proxy has been down for more than 2 minutes"
