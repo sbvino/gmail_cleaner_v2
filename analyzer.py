@@ -242,6 +242,7 @@ class GmailAnalyzer:
         try:
             data = self.redis_client.get(key)
             if data:
+                # Track cache hit in Flask app if available
                 return json.loads(data)
         except Exception as e:
             logger.error(f"Cache read error: {e}")
