@@ -14,11 +14,11 @@ services:
       - PYTHONUNBUFFERED=1
       - TZ=UTC
     volumes:
-      - ./data:/app/data
-      - ./config:/app/config
+      - ./data:/app/data:rw
+      - ./config:/app/config:ro
       - ./credentials.json:/app/credentials.json:ro
-      - ./token.pickle:/app/token.pickle
-      - ./logs:/app/logs
+      - ./token.pickle:/app/token.pickle:rw
+      - ./logs:/app/logs:rw
     depends_on:
       - redis
     networks:
@@ -91,11 +91,11 @@ services:
       - DB_PATH=/app/data/gmail_cleaner.db
       - PYTHONUNBUFFERED=1
     volumes:
-      - ./data:/app/data
-      - ./config:/app/config
+      - ./data:/app/data:rw
+      - ./config:/app/config:ro
       - ./credentials.json:/app/credentials.json:ro
-      - ./token.pickle:/app/token.pickle
-      - ./logs:/app/logs
+      - ./token.pickle:/app/token.pickle:rw
+      - ./logs:/app/logs:rw
     depends_on:
       - redis
       - app
