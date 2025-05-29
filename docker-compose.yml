@@ -167,3 +167,5 @@ volumes:
     driver: local
   nginx-cache:
     driver: local
+  gmail-data:
+    driver: local
