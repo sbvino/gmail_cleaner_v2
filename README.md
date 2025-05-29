@@ -72,10 +72,15 @@ gmail-ai-cleaner/
 │   ├── cert.pem
 │   └── key.pem
 │
-├── monitoring/              # Optional monitoring
+├── monitoring/              # Monitoring configuration
 │   ├── prometheus.yml       # Prometheus config
-│   ├── grafana-datasources.yml
-│   └── grafana-dashboards/
+│   ├── grafana-datasources.yml  # Grafana data sources
+│   ├── grafana-dashboards.yml   # Dashboard provisioning
+│   ├── grafana-dashboards/      # Dashboard JSON files
+│   │   └── gmail-cleaner.json   # Main dashboard
+│   ├── alerts/                  # Alert rules
+│   │   └── gmail-cleaner.yml    # Gmail cleaner alerts
+│   └── docker-compose.monitoring.yml  # Additional monitoring services
 │
 └── backups/                 # Database backups
     └── [timestamp].tar.gz
@@ -288,21 +293,59 @@ OAUTHLIB_INSECURE_TRANSPORT=0
 
 ## Monitoring (Optional)
 
-Enable monitoring stack:
+### Enable Basic Monitoring
 ```bash
 docker-compose --profile monitoring up -d
 ```
 
-Access:
+### Enable Full Monitoring Stack
+```bash
+# Includes node-exporter, redis-exporter, alertmanager
+docker-compose -f docker-compose.yml -f monitoring/docker-compose.monitoring.yml up -d
+```
+
+### Access Monitoring Tools
 - Prometheus: http://localhost:9090
 - Grafana: http://localhost:3000 (admin/admin)
+- Alertmanager: http://localhost:9093 (if enabled)
 
 ### Available Metrics
-- Email processing rate
-- Deletion statistics
-- API response times
-- Cache hit rates
-- Background job status
+- **Email Processing**
+  - `gmail_emails_processed_total` - Total emails processed
+  - `gmail_emails_deleted_total` - Total emails deleted
+  - `gmail_operation_duration_seconds` - Operation latency histogram
+- **API Performance**
+  - `gmail_api_requests_total` - Total API requests
+  - `gmail_api_errors_total` - Total API errors
+  - `gmail_active_sessions` - Current active sessions
+- **Cache Performance**
+  - `gmail_cache_hits_total` - Cache hit count
+  - `gmail_cache_misses_total` - Cache miss count
+- **Cleanup Rules**
+  - `gmail_cleanup_rules_executed_total` - Rules executed
+  - `gmail_cleanup_rules_failed_total` - Rules failed
+
+### Grafana Dashboard
+The Gmail Cleaner dashboard is automatically provisioned and includes:
+- Email processing rate graphs
+- API performance metrics
+- Cache hit rate visualization
+- Operation duration percentiles
+- Active session monitoring
+- System resource usage (if node-exporter enabled)
+
+### Alerts
+Pre-configured alerts include:
+- High API error rate (>5% for 5 minutes)
+- Service down (app, redis, nginx)
+- High memory usage (>90%)
+- Low cache hit rate (<50%)
+- Slow operations (>30s p95)
+- Failed cleanup rules
+- Low disk space (<10%)
+
+### Custom Alerts
+Add custom alerts in `monitoring/alerts/gmail-cleaner.yml`
 
 ## Troubleshooting
 
@@ -504,7 +547,15 @@ For issues and questions:
 - scheduler.py - Background task scheduler for automated rules
 - .dockerignore - Docker build exclusions
 - config/rules.yaml - Template for cleanup rules
-- Favicon instructions - Guide for adding app icon
+- scripts/backup.sh - Automated backup script
+- scripts/analyze.py - Command-line analyzer with rich output
+- monitoring/prometheus.yml - Prometheus configuration
+- monitoring/grafana-datasources.yml - Grafana data sources
+- monitoring/grafana-dashboards.yml - Dashboard auto-provisioning
+- monitoring/grafana-dashboards/gmail-cleaner.json - Main dashboard
+- monitoring/alerts/gmail-cleaner.yml - Alert rules
+- monitoring/docker-compose.monitoring.yml - Extended monitoring stack
+- Favicon instructions - Guide for adding application icon
 
 ### Performance Optimizations
 - Batch processing with configurable size
@@ -512,5 +563,6 @@ For issues and questions:
 - Redis caching with TTL for expensive operations
 - Database indexing for faster queries
 - Connection pooling for Gmail API
+- Prometheus metrics for performance monitoring
 
 All components have been thoroughly reviewed for security, performance, and reliability. The application is production-ready for deployment on Raspberry Pi 5 or similar hardware.
