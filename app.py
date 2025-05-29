@@ -17,6 +17,7 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_compress import Compress
 from werkzeug.security import generate_password_hash, check_password_hash
+from prometheus_client import Counter, Histogram, Gauge, generate_latest, CONTENT_TYPE_LATEST
 import redis
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
@@ -56,6 +57,18 @@ analyzer = GmailAnalyzer()
 # Initialize scheduler for automated tasks
 scheduler = BackgroundScheduler()
 scheduler.start()
+
+# Prometheus metrics
+gmail_emails_processed = Counter('gmail_emails_processed_total', 'Total emails processed')
+gmail_emails_deleted = Counter('gmail_emails_deleted_total', 'Total emails deleted')
+gmail_api_requests = Counter('gmail_api_requests_total', 'Total Gmail API requests')
+gmail_api_errors = Counter('gmail_api_errors_total', 'Total Gmail API errors')
+gmail_cache_hits = Counter('gmail_cache_hits_total', 'Total cache hits')
+gmail_cache_misses = Counter('gmail_cache_misses_total', 'Total cache misses')
+gmail_operation_duration = Histogram('gmail_operation_duration_seconds', 'Operation duration', ['operation'])
+gmail_active_sessions = Gauge('gmail_active_sessions', 'Active sessions')
+gmail_cleanup_rules_executed = Counter('gmail_cleanup_rules_executed_total', 'Cleanup rules executed')
+gmail_cleanup_rules_failed = Counter('gmail_cleanup_rules_failed_total', 'Cleanup rules failed')
 
 # Global state for progress tracking
 progress_state = {
@@ -196,57 +209,64 @@ def oauth2callback():
 def analyze_senders():
     """Get sender statistics"""
     try:
-        # Get parameters
-        max_results = int(request.args.get('max_results', 1000))
-        use_cache = request.args.get('use_cache', 'true').lower() == 'true'
-        query = request.args.get('query', '')
-        
-        # Update progress
-        update_progress(0, 100, 'Fetching emails...')
-        
-        # Fetch emails
-        emails = analyzer.fetch_emails_batch(query=query, max_results=max_results)
-        
-        update_progress(50, 100, 'Analyzing senders...')
-        
-        # Analyze senders
-        senders = analyzer.analyze_senders(emails)
-        
-        # Convert to list and sort
-        sender_list = []
-        for email, stats in senders.items():
-            sender_list.append({
-                'email': stats.email,
-                'domain': stats.domain,
-                'total_count': stats.total_count,
-                'unread_count': stats.unread_count,
-                'total_size': stats.total_size,
-                'size_mb': round(stats.total_size / (1024 * 1024), 2),
-                'oldest_date': stats.oldest_date.isoformat() if stats.oldest_date else None,
-                'newest_date': stats.newest_date.isoformat() if stats.newest_date else None,
-                'email_velocity': round(stats.email_velocity, 2),
-                'spam_score': round(stats.spam_score, 2),
-                'is_newsletter': stats.is_newsletter,
-                'is_automated': stats.is_automated,
-                'has_unsubscribe': stats.has_unsubscribe,
-                'attachment_count': stats.attachment_count,
-                'subject_patterns': stats.subject_patterns
+        with gmail_operation_duration.labels('analyze_senders').time():
+            # Get parameters
+            max_results = int(request.args.get('max_results', 1000))
+            use_cache = request.args.get('use_cache', 'true').lower() == 'true'
+            query = request.args.get('query', '')
+            
+            # Update progress
+            update_progress(0, 100, 'Fetching emails...')
+            
+            # Fetch emails
+            gmail_api_requests.inc()
+            try:
+                emails = analyzer.fetch_emails_batch(query=query, max_results=max_results)
+                gmail_emails_processed.inc(len(emails))
+            except Exception as e:
+                gmail_api_errors.inc()
+                raise e
+            
+            update_progress(50, 100, 'Analyzing senders...')
+            
+            # Analyze senders
+            senders = analyzer.analyze_senders(emails)
+            
+            # Convert to list and sort
+            sender_list = []
+            for email, stats in senders.items():
+                sender_list.append({
+                    'email': stats.email,
+                    'domain': stats.domain,
+                    'total_count': stats.total_count,
+                    'unread_count': stats.unread_count,
+                    'total_size': stats.total_size,
+                    'size_mb': round(stats.total_size / (1024 * 1024), 2),
+                    'oldest_date': stats.oldest_date.isoformat() if stats.oldest_date else None,
+                    'newest_date': stats.newest_date.isoformat() if stats.newest_date else None,
+                    'email_velocity': round(stats.email_velocity, 2),
+                    'spam_score': round(stats.spam_score, 2),
+                    'is_newsletter': stats.is_newsletter,
+                    'is_automated': stats.is_automated,
+                    'has_unsubscribe': stats.has_unsubscribe,
+                    'attachment_count': stats.attachment_count,
+                    'subject_patterns': stats.subject_patterns
+                })
+            
+            # Sort by total count descending
+            sender_list.sort(key=lambda x: x['total_count'], reverse=True)
+            
+            update_progress(100, 100, 'Analysis complete')
+            
+            return jsonify({
+                'success': True,
+                'data': {
+                    'senders': sender_list[:100],  # Top 100 senders
+                    'total_senders': len(senders),
+                    'total_emails': len(emails),
+                    'timestamp': datetime.now().isoformat()
+                }
             })
-        
-        # Sort by total count descending
-        sender_list.sort(key=lambda x: x['total_count'], reverse=True)
-        
-        update_progress(100, 100, 'Analysis complete')
-        
-        return jsonify({
-            'success': True,
-            'data': {
-                'senders': sender_list[:100],  # Top 100 senders
-                'total_senders': len(senders),
-                'total_emails': len(emails),
-                'timestamp': datetime.now().isoformat()
-            }
-        })
         
     except Exception as e:
         logger.error(f"Error analyzing senders: {e}")
@@ -757,6 +777,13 @@ def health_check():
             'status': 'unhealthy',
             'error': str(e)
         }), 500
+
+
+@app.route('/metrics')
+def metrics():
+    """Prometheus metrics endpoint"""
+    gmail_active_sessions.set(len(session))
+    return Response(generate_latest(), mimetype=CONTENT_TYPE_LATEST)
 
 
 if __name__ == '__main__':
