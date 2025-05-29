@@ -244,7 +244,13 @@ chmod 777 data  # Allow container to write
 
 # Initialize database
 print_status "Initializing database..."
-docker-compose run --rm -v $(pwd)/data:/app/data app python -c "from analyzer import GmailAnalyzer; GmailAnalyzer()"
+# First try to run it locally if Python is available
+if command -v python3 &> /dev/null; then
+    python3 scripts/init-db.py
+else
+    # Otherwise use Docker
+    docker-compose run --rm -v $(pwd)/data:/app/data app python scripts/init-db.py
+fi
 
 print_status "Setup complete!"
 echo ""
